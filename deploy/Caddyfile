@@ -1,0 +1,20 @@
+# One hostname, automatic HTTPS (Let's Encrypt; renewals are automatic). SITE_ADDRESS comes from .env.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# The API. Only /api is routed to it; the web container and the API are never reachable except through here.
+	handle /api/* {
+		reverse_proxy api:4000
+	}
+
+	# Everything else is the web app (it sets its own security headers: CSP, HSTS, frame-ancestors…).
+	handle {
+		reverse_proxy web:8080
+	}
+
+	# Don't log request bodies or query strings (they can contain UIDs); one line per request is plenty.
+	log {
+		output stdout
+		format console
+	}
+}

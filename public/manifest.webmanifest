@@ -1,0 +1,12 @@
+{
+  "name": "LPU Smart Mess",
+  "short_name": "Smart Mess",
+  "description": "Hostel mess demand forecasting and food-waste management for Lovely Professional University.",
+  "start_url": "/login",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#3554D1",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

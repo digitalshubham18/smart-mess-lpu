@@ -1,0 +1,22 @@
+# Running WITHOUT Docker: copy to /etc/systemd/system/, then  systemctl daemon-reload && systemctl enable --now smartmess-api
+[Unit]
+Description=LPU Smart Mess API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=smartmess
+WorkingDirectory=/srv/smart-mess/server
+EnvironmentFile=/etc/smartmess.env
+ExecStart=/usr/bin/node src/index.js
+Restart=on-failure
+RestartSec=3
+# Contain it: it only needs its own folder, the network and a few temp files.
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/srv/smart-mess/server/data /srv/smart-mess/server/backups
+PrivateTmp=true
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

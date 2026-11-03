@@ -1,0 +1,77 @@
+# PRODUCTION: HTTPS on one hostname, everything else private.
+#   cp .env.prod.example .env   (fill it in)   →   docker compose -f docker-compose.prod.yml up -d --build
+# Full walkthrough, including DNS, firewall, backups and monitoring: docs/DEPLOYMENT.md
+#
+#   internet ──443──▶ caddy (TLS, certificates renew themselves)
+#                       ├─ /api/*  ▶ api:4000   (never published to the host)
+#                       └─ /*      ▶ web:8080   (never published to the host)
+#   backup  ── runs inside the same private network, writes to the data volume every BACKUP_EVERY_HOURS
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env, e.g. mess.example.edu}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data        # certificates — losing this only means they are re-issued
+      - caddy-config:/config
+    depends_on: { web: { condition: service_started }, api: { condition: service_healthy } }
+
+  api:
+    build: ./server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      SEED_DEMO: "0"                       # a real deployment never gets the demo people (and their published password)
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (openssl rand -hex 32)}
+      CORS_ORIGIN: https://${SITE_ADDRESS}
+      TRUST_PROXY: "1"                     # exactly one proxy (caddy) in front: real client IPs for rate limits and the device list
+      COOKIE_SAMESITE: Lax                 # web and API share one hostname
+      MESS_TIMEZONE: ${MESS_TIMEZONE:-Asia/Kolkata}
+      REQUIRE_2FA_ROLES: ${REQUIRE_2FA_ROLES-SUPER_ADMIN,ADMIN}
+      REMINDER_TIME: ${REMINDER_TIME:-21:00}
+      SUMMARY_TIME: ${SUMMARY_TIME:-22:30}
+      ERROR_WEBHOOK_URL: ${ERROR_WEBHOOK_URL:-}
+      NO_SHOW_FINE_AMOUNT: ${NO_SHOW_FINE_AMOUNT:-100}
+      PRIVACY_CONTACT_EMAIL: ${PRIVACY_CONTACT_EMAIL:?who do students contact about their data? (shown in the photo privacy notice)}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    volumes: [ "smartmess-data:/data" ]
+    expose: ["4000"]
+
+  web:
+    build:
+      context: .
+      args:
+        VITE_API_URL: /api                 # same hostname → no CORS, cookies stay first-party
+    restart: unless-stopped
+    environment:
+      API_ORIGIN: https://${SITE_ADDRESS}
+    expose: ["8080"]
+
+  # A consistent copy of the database (SQLite's online backup — safe while the app runs), then keeps the newest N.
+  # The FIRST backup runs at start-up, so /api/health/ready is green within seconds of a fresh deploy.
+  backup:
+    build: ./server
+    restart: unless-stopped
+    environment:
+      DB_PATH: /data/smartmess.sqlite
+      BACKUP_DIR: /data/backups
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+    volumes: [ "smartmess-data:/data" ]
+    entrypoint: ["sh", "-c"]
+    command: ['while true; do node scripts/backup.js || echo "[backup] FAILED — the readiness check will go red in 36h"; sleep $$(( ${BACKUP_EVERY_HOURS:-24} * 3600 )); done']
+    depends_on: { api: { condition: service_healthy } }
+
+volumes:
+  smartmess-data:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Smart Mess palette — campus tech (blue) + sustainability (green) + neutral operations gray */
+  --color-ink-950: #0b1220;
+  --color-ink-900: #101826;
+  --color-ink-800: #1a2438;
+  --color-ink-700: #2a3652;
+
+  --color-surface: #f6f7fb;
+  --color-surface-dim: #eceef4;
+  --color-line: #dde1ea;
+
+  --color-tech-50: #eef2ff;
+  --color-tech-500: #3554d1;
+  --color-tech-600: #2c46b3;
+  --color-tech-700: #253a93;
+
+  --color-eco-50: #eaf7f0;
+  --color-eco-500: #1f8a5f;
+  --color-eco-600: #1a744f;
+  --color-eco-700: #145c3f;
+
+  --color-amber-50: #fdf3e3;
+  --color-amber-500: #d97d0a;
+  --color-amber-600: #b8680a;
+
+  --color-rose-50: #fbeaea;
+  --color-rose-500: #c0392b;
+  --color-rose-600: #a32e22;
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-surface);
+  color: var(--color-ink-900);
+}
+.dark body {
+  background-color: var(--color-ink-950);
+  color: #e6e9f2;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--color-line); border-radius: 999px; }
+.dark ::-webkit-scrollbar-thumb { background: var(--color-ink-700); }
+
+* { scrollbar-width: thin; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Full-screen colour flash after each counter scan: green = checked in, amber = look at this person, red = refused. */
+@keyframes scan-flash { 0% { opacity: 0.55; } 100% { opacity: 0; } }
+.scan-flash { position: fixed; inset: 0; pointer-events: none; z-index: 60; animation: scan-flash 700ms ease-out forwards; }
+.scan-flash-success { background: #1f8a5f; }
+.scan-flash-warn { background: #d97d0a; }
+.scan-flash-error { background: #c0392b; }
+@media (prefers-reduced-motion: reduce) { .scan-flash { animation-duration: 1ms; } }
+
+/* The printable meal ID card: when printing, show only the card. */
+@media print {
+  body * { visibility: hidden !important; }
+  .print-area, .print-area * { visibility: visible !important; }
+  .print-area { position: fixed; left: 0; top: 0; width: 100%; display: flex; justify-content: center; padding-top: 12mm; }
+  .no-print { display: none !important; }
+}

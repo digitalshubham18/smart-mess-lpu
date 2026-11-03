@@ -1,0 +1,9 @@
+node_modules
+server/node_modules
+dist
+server/data
+server/backups
+e2e/.tmp
+test-results
+.git
+.env

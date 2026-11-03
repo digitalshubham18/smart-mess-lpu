@@ -1,0 +1,12 @@
+[Unit]
+Description=LPU Smart Mess database backup (+ off-site copy if configured)
+After=smartmess-api.service
+
+[Service]
+Type=oneshot
+User=smartmess
+WorkingDirectory=/srv/smart-mess/server
+EnvironmentFile=/etc/smartmess.env
+ExecStart=/usr/bin/node scripts/backup.js
+# Optional second step: encrypt + copy off the machine. Leave it out until deploy/offsite-backup.sh is configured.
+# ExecStartPost=/srv/smart-mess/deploy/offsite-backup.sh

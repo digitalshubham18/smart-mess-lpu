@@ -1,0 +1,36 @@
+# One command: docker compose up --build
+# Needs a .env next to this file (see .env.docker.example). The API REFUSES to start without a real JWT_SECRET.
+services:
+  api:
+    build: ./server
+    restart: unless-stopped
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (e.g. openssl rand -hex 32)}
+      CORS_ORIGIN: ${WEB_ORIGIN:-http://localhost:8080}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-Lax}
+      # Optional real email (otherwise mail is written to files in /data/outbox):
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    volumes:
+      - smartmess-data:/data
+    ports:
+      - "4000:4000"
+
+  web:
+    build:
+      context: .
+      args:
+        VITE_API_URL: ${PUBLIC_API_URL:-http://localhost:4000/api}
+    restart: unless-stopped
+    environment:
+      API_ORIGIN: ${PUBLIC_API_ORIGIN:-http://localhost:4000}
+    depends_on:
+      api: { condition: service_healthy }
+    ports:
+      - "8080:8080"
+
+volumes:
+  smartmess-data:

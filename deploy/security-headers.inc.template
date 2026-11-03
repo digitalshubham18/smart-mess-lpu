@@ -1,0 +1,10 @@
+# Rendered to /etc/nginx/conf.d/security-headers.inc and `include`d from the server AND from every location that
+# sets its own add_header. nginx does NOT inherit add_header into a location that defines any add_header of its
+# own — it replaces them all — so without these includes, index.html and /assets/ would ship with no CSP at all.
+# ${API_ORIGIN} is filled in by the nginx image's envsubst at start-up.
+add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: ${API_ORIGIN}; connect-src 'self' ${API_ORIGIN}; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+add_header X-Frame-Options "DENY" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Permissions-Policy "camera=(self), microphone=(), geolocation=()" always; # camera is needed for QR scanning
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;     # only effective when served over HTTPS
