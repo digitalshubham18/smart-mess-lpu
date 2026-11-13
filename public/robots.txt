@@ -1,13 +1,7 @@
-# LPU Smart Mess is a client-rendered SPA where nearly every route requires a
-# signed-in session — a crawler can't get past the login screen for anything
-# else, so there's little point disallowing specific app paths (Dashboard,
-# Students, Attendance, etc.) explicitly; they're unreachable without auth
-# regardless of what's listed here. The public entry points (login, register,
-# password reset) are left open to indexing.
+
+# LPU Smart Mess - Search Engine Crawling Rules
+
 User-agent: *
 Allow: /
-Allow: /login
-Allow: /register
-Allow: /forgot-password
 
-Sitemap: https://smartmess.lpu.in/sitemap.xml
+Sitemap: https://smart-mess-lpu.vercel.app/sitemap.xml
