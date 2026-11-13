@@ -1,21 +1,11 @@
+
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Only the public, unauthenticated routes are listed — every other route in
-     this SPA requires a signed-in session and isn't useful for a crawler to
-     index (see robots.txt). Update the domain below to your real deployment. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
   <url>
-    <loc>https://smartmess.lpu.in/</loc>
+    <loc>https://smart-mess-lpu.vercel.app/</loc>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
-  <url>
-    <loc>https://smartmess.lpu.in/login</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://smartmess.lpu.in/register</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
+
 </urlset>
