@@ -65,7 +65,7 @@ function OperationsDashboard() {
 
   return (
     <div className="space-y-7">
-      <DemoBanner what={'Some figures on this dashboard are sample data (the real ones are attendance, the roster and forecasts).'} />
+      {/* <DemoBanner what={'Some figures on this dashboard are sample data (the real ones are attendance, the roster and forecasts).'} /> */}
       <div>
         <h1 className="font-display text-xl font-bold text-slate-800 dark:text-slate-100">{isSuperAdmin ? 'Super Admin Overview' : isMessAdmin ? 'Mess Admin Overview' : "Today's Overview"}</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">{formatFull(TODAY_ISO)} · Viewing {messName(messId)}</p>
@@ -274,7 +274,7 @@ function StudentDashboard({ studentId }: { studentId: string }) {
 
   return (
     <div className="space-y-7">
-      <DemoBanner what={'Some figures on this dashboard are sample data (the real ones are attendance, the roster and forecasts).'} />
+      {/* <DemoBanner what={'Some figures on this dashboard are sample data (the real ones are attendance, the roster and forecasts).'} /> */}
       {pickError && <div role="alert" className="rounded-lg px-3 py-2 text-xs text-rose-600 bg-rose-50 dark:bg-rose-500/10">{pickError}</div>}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
