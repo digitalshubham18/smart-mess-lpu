@@ -61,7 +61,6 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/change-password" element={<ChangePasswordRequired />} />
-        {/* <Route path="/setup-two-factor" element={<SetupTwoFactorRequired />} /> */}
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 

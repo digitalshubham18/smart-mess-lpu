@@ -14,9 +14,9 @@ export function ProtectedRoute({ children, roles }: { children: React.ReactNode;
     return <Navigate to="/change-password" replace />
   }
   // Admin / Super Admin must have two-factor; until it's on, the API allows only setting it up, so go straight there.
-  if (user?.twoFactorSetupRequired) {
-    return <Navigate to="/setup-two-factor" replace />
-  }
+  // if (user?.twoFactorSetupRequired) {
+  //   return <Navigate to="/setup-two-factor" replace />
+  // }
   if (roles && user && !roles.includes(user.role)) {
     return <Navigate to="/dashboard" replace />
   }
