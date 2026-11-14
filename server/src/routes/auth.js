@@ -4,16 +4,20 @@ import crypto from 'node:crypto'
 import { db, logAudit, lockoutStatus, recordFailedLogin, clearFailedLogins, revokeAllTokens, messIdForHostel, NOT_ON_MESS_MESSAGE } from '../db.js'
 import { toUserJSON, toStaffUserJSON, maskEmail } from '../mappers.js'
 import { namesLikelyMatch } from '../fuzzyMatch.js'
-import { signToken, signChallenge, verifyChallenge, requireAuth, setSessionCookie, clearSessionCookie, isWebClient, startSession, describeDevice } from '../auth.js'
-import { twoFactorRequiredFor } from '../policy.js'
+// import { signToken, signChallenge, verifyChallenge, requireAuth, setSessionCookie, clearSessionCookie, isWebClient, startSession, describeDevice } from '../auth.js'
+// import { twoFactorRequiredFor } from '../policy.js'
+import { signToken, requireAuth, setSessionCookie, clearSessionCookie, isWebClient, startSession, describeDevice } from '../auth.js'
 import { rateLimit } from '../rateLimit.js'
 import { sendEmail, sendEmailInBackground } from '../email.js'
+// import {
+//   validate, registerSchema, loginSchema, otpEmailSchema, otpVerifySchema,
+//   passwordResetRequestSchema, passwordResetConfirmSchema, changePasswordSchema,
+//   twoFactorLoginSchema, twoFactorEnableSchema, twoFactorDisableSchema } from '../schemas.js'
+// import { newSecret, otpauthUri, verifyTotp, sealSecret, openSecret, newRecoveryCodes, hashRecoveryCode } from '../totp.js'
 import {
   validate, registerSchema, loginSchema, otpEmailSchema, otpVerifySchema,
-  passwordResetRequestSchema, passwordResetConfirmSchema, changePasswordSchema,
-  twoFactorLoginSchema, twoFactorEnableSchema, twoFactorDisableSchema } from '../schemas.js'
-import { newSecret, otpauthUri, verifyTotp, sealSecret, openSecret, newRecoveryCodes, hashRecoveryCode } from '../totp.js'
-
+  passwordResetRequestSchema, passwordResetConfirmSchema, changePasswordSchema
+} from '../schemas.js'
 export const authRouter = Router()
 
 // Staff passwords expire after this many days (0 = never). Students are not forced to rotate.
@@ -237,9 +241,9 @@ authRouter.post('/login', loginLimiter, validate(loginSchema), async (req, res) 
   }
   // Two-factor: a correct password is only the first half. No session yet — just a 5-minute challenge that
   // /auth/login/2fa exchanges for one once the authenticator code is right.
-  if (row.totp_enabled) {
-    return res.json({ twoFactorRequired: true, challenge: signChallenge({ sub: row.id, role }) })
-  }
+  // if (row.totp_enabled) {
+  //   return res.json({ twoFactorRequired: true, challenge: signChallenge({ sub: row.id, role }) })
+  // }
   completeLogin(req, res, table, role, row)
 })
 
@@ -252,92 +256,92 @@ function completeLogin(req, res, table, role, row) {
 }
 
 const tableOf = (role) => (role === 'STUDENT' ? 'students' : 'staff')
-const typeOf = (role) => (role === 'STUDENT' ? 'student' : 'staff')
+// const typeOf = (role) => (role === 'STUDENT' ? 'student' : 'staff')
 
 /** Accepts a TOTP code (never the same step twice) or an unused recovery code (burned on use). Returns true/false. */
-function checkSecondFactor(table, row, code) {
-  const clean = String(code).trim()
-  if (/^\d{3}\s?\d{3}$/.test(clean) && row.totp_secret) {
-    const step = verifyTotp(openSecret(row.totp_secret), clean, { lastStep: row.totp_last_step })
-    if (step === null) return false
-    // Compare-and-set: two simultaneous requests with the same code can't both win.
-    return db.prepare(`UPDATE ${table} SET totp_last_step = ? WHERE id = ? AND totp_last_step < ?`).run(step, row.id, step).changes === 1
-  }
-  const type = table === 'students' ? 'student' : 'staff'
-  return db.prepare('DELETE FROM totp_recovery_codes WHERE account_type = ? AND account_id = ? AND code_hash = ?').run(type, row.id, hashRecoveryCode(clean)).changes === 1
-}
+// function checkSecondFactor(table, row, code) {
+//   const clean = String(code).trim()
+//   if (/^\d{3}\s?\d{3}$/.test(clean) && row.totp_secret) {
+//     const step = verifyTotp(openSecret(row.totp_secret), clean, { lastStep: row.totp_last_step })
+//     if (step === null) return false
+//     // Compare-and-set: two simultaneous requests with the same code can't both win.
+//     return db.prepare(`UPDATE ${table} SET totp_last_step = ? WHERE id = ? AND totp_last_step < ?`).run(step, row.id, step).changes === 1
+//   }
+//   const type = table === 'students' ? 'student' : 'staff'
+//   return db.prepare('DELETE FROM totp_recovery_codes WHERE account_type = ? AND account_id = ? AND code_hash = ?').run(type, row.id, hashRecoveryCode(clean)).changes === 1
+// }
 
-authRouter.post('/login/2fa', loginLimiter, validate(twoFactorLoginSchema), (req, res) => {
-  let p
-  try { p = verifyChallenge(req.body.challenge) } catch {
-    return res.status(401).json({ error: 'That sign-in attempt has expired — enter your password again.', code: 'CHALLENGE_EXPIRED' })
-  }
-  const table = tableOf(p.role)
-  const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(p.sub)
-  if (!row || !row.totp_enabled) return res.status(401).json({ error: 'That sign-in attempt has expired — enter your password again.', code: 'CHALLENGE_EXPIRED' })
-  const lock = lockoutStatus(row)
-  if (lock.locked) return res.status(423).json({ error: `Too many failed attempts — this account is locked for ${lock.retryAfterMinutes} more minute${lock.retryAfterMinutes === 1 ? '' : 's'}.` })
+// authRouter.post('/login/2fa', loginLimiter, validate(twoFactorLoginSchema), (req, res) => {
+//   let p
+//   try { p = verifyChallenge(req.body.challenge) } catch {
+//     return res.status(401).json({ error: 'That sign-in attempt has expired — enter your password again.', code: 'CHALLENGE_EXPIRED' })
+//   }
+//   const table = tableOf(p.role)
+//   const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(p.sub)
+//   if (!row || !row.totp_enabled) return res.status(401).json({ error: 'That sign-in attempt has expired — enter your password again.', code: 'CHALLENGE_EXPIRED' })
+//   const lock = lockoutStatus(row)
+//   if (lock.locked) return res.status(423).json({ error: `Too many failed attempts — this account is locked for ${lock.retryAfterMinutes} more minute${lock.retryAfterMinutes === 1 ? '' : 's'}.` })
 
-  if (!checkSecondFactor(table, row, req.body.code)) {
-    // Wrong codes feed the same 5-strikes lockout as wrong passwords — a 6-digit code must not be brute-forceable.
-    const result = recordFailedLogin(table, row.id)
-    if (result.locked) return res.status(423).json({ error: `Too many failed attempts — this account is now locked for ${result.retryAfterMinutes} minutes.` })
-    return res.status(401).json({ error: 'That code is incorrect or has already been used.', code: 'TOTP_INVALID' })
-  }
-  clearFailedLogins(table, row.id)
-  completeLogin(req, res, table, p.role, row)
-})
+//   if (!checkSecondFactor(table, row, req.body.code)) {
+//     // Wrong codes feed the same 5-strikes lockout as wrong passwords — a 6-digit code must not be brute-forceable.
+//     const result = recordFailedLogin(table, row.id)
+//     if (result.locked) return res.status(423).json({ error: `Too many failed attempts — this account is now locked for ${result.retryAfterMinutes} minutes.` })
+//     return res.status(401).json({ error: 'That code is incorrect or has already been used.', code: 'TOTP_INVALID' })
+//   }
+//   clearFailedLogins(table, row.id)
+//   completeLogin(req, res, table, p.role, row)
+// })
 
 // --- Turning two-factor on and off (signed-in people, for their own account) ---------------------------------------
-authRouter.post('/2fa/setup', loginLimiter, requireAuth, (req, res) => {
-  const table = tableOf(req.auth.role)
-  const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(req.auth.sub)
-  if (row.totp_enabled) return res.status(409).json({ error: 'Two-factor login is already on. Turn it off first to set it up again.', code: 'TOTP_ALREADY_ENABLED' })
-  const secret = newSecret()
-  db.prepare(`UPDATE ${table} SET totp_secret = ?, totp_enabled = 0, totp_last_step = 0 WHERE id = ?`).run(sealSecret(secret), row.id)
-  res.json({ secret, otpauthUri: otpauthUri({ secret, account: row.email }) })
-})
+// authRouter.post('/2fa/setup', loginLimiter, requireAuth, (req, res) => {
+//   const table = tableOf(req.auth.role)
+//   const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(req.auth.sub)
+//   if (row.totp_enabled) return res.status(409).json({ error: 'Two-factor login is already on. Turn it off first to set it up again.', code: 'TOTP_ALREADY_ENABLED' })
+//   const secret = newSecret()
+//   db.prepare(`UPDATE ${table} SET totp_secret = ?, totp_enabled = 0, totp_last_step = 0 WHERE id = ?`).run(sealSecret(secret), row.id)
+//   res.json({ secret, otpauthUri: otpauthUri({ secret, account: row.email }) })
+// })
 
-authRouter.post('/2fa/enable', loginLimiter, requireAuth, validate(twoFactorEnableSchema), (req, res) => {
-  const table = tableOf(req.auth.role)
-  const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(req.auth.sub)
-  if (row.totp_enabled) return res.status(409).json({ error: 'Two-factor login is already on.', code: 'TOTP_ALREADY_ENABLED' })
-  if (!row.totp_secret) return res.status(400).json({ error: 'Start setup first.', code: 'TOTP_NOT_STARTED' })
-  const step = verifyTotp(openSecret(row.totp_secret), req.body.code)
-  if (step === null) return res.status(400).json({ error: 'That code is incorrect — check your authenticator app and try the newest code.', code: 'TOTP_INVALID' })
-  const codes = newRecoveryCodes()
-  db.transaction(() => {
-    db.prepare(`UPDATE ${table} SET totp_enabled = 1, totp_last_step = ? WHERE id = ?`).run(step, row.id)
-    db.prepare('DELETE FROM totp_recovery_codes WHERE account_type = ? AND account_id = ?').run(typeOf(req.auth.role), row.id)
-    const ins = db.prepare('INSERT INTO totp_recovery_codes (account_type, account_id, code_hash) VALUES (?, ?, ?)')
-    for (const c of codes) ins.run(typeOf(req.auth.role), row.id, hashRecoveryCode(c))
-  })()
-  logAudit({ actorId: req.auth.sub, actorName: req.auth.name, actorRole: req.auth.role, action: 'two_factor_enabled', messId: row.hostel_id ? messIdForHostel(row.hostel_id) : undefined, summary: `${req.auth.name} turned on two-factor login` })
-  res.json({ enabled: true, recoveryCodes: codes })
-})
+// authRouter.post('/2fa/enable', loginLimiter, requireAuth, validate(twoFactorEnableSchema), (req, res) => {
+//   const table = tableOf(req.auth.role)
+//   const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(req.auth.sub)
+//   if (row.totp_enabled) return res.status(409).json({ error: 'Two-factor login is already on.', code: 'TOTP_ALREADY_ENABLED' })
+//   if (!row.totp_secret) return res.status(400).json({ error: 'Start setup first.', code: 'TOTP_NOT_STARTED' })
+//   const step = verifyTotp(openSecret(row.totp_secret), req.body.code)
+//   if (step === null) return res.status(400).json({ error: 'That code is incorrect — check your authenticator app and try the newest code.', code: 'TOTP_INVALID' })
+//   const codes = newRecoveryCodes()
+//   db.transaction(() => {
+//     db.prepare(`UPDATE ${table} SET totp_enabled = 1, totp_last_step = ? WHERE id = ?`).run(step, row.id)
+//     db.prepare('DELETE FROM totp_recovery_codes WHERE account_type = ? AND account_id = ?').run(typeOf(req.auth.role), row.id)
+//     const ins = db.prepare('INSERT INTO totp_recovery_codes (account_type, account_id, code_hash) VALUES (?, ?, ?)')
+//     for (const c of codes) ins.run(typeOf(req.auth.role), row.id, hashRecoveryCode(c))
+//   })()
+//   logAudit({ actorId: req.auth.sub, actorName: req.auth.name, actorRole: req.auth.role, action: 'two_factor_enabled', messId: row.hostel_id ? messIdForHostel(row.hostel_id) : undefined, summary: `${req.auth.name} turned on two-factor login` })
+//   res.json({ enabled: true, recoveryCodes: codes })
+// })
 
-authRouter.post('/2fa/disable', loginLimiter, requireAuth, validate(twoFactorDisableSchema), async (req, res) => {
-  const table = tableOf(req.auth.role)
-  const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(req.auth.sub)
-  if (!row.totp_enabled) return res.status(409).json({ error: 'Two-factor login is not on.', code: 'TOTP_NOT_ENABLED' })
-  // Required roles can't switch it off — that is the whole point of the requirement (a stolen session must not be able to strip it).
-  if (twoFactorRequiredFor(req.auth.role)) return res.status(403).json({ error: 'Two-factor login is required for your role and cannot be turned off. If you lost your authenticator, ask the Super Admin to reset it.', code: 'TWO_FACTOR_REQUIRED_BY_POLICY' })
-  const lock = lockoutStatus(row)
-  if (lock.locked) return res.status(423).json({ error: `Too many failed attempts — locked for ${lock.retryAfterMinutes} more minute${lock.retryAfterMinutes === 1 ? '' : 's'}.` })
-  // A borrowed, signed-in session must not be able to strip the protection: password AND a code are both required.
-  if (!(await verifyPassword(req.body.password, row.password_hash)) || !checkSecondFactor(table, row, req.body.code)) {
-    const result = recordFailedLogin(table, row.id)
-    if (result.locked) return res.status(423).json({ error: `Too many failed attempts — this account is now locked for ${result.retryAfterMinutes} minutes.` })
-    return res.status(400).json({ error: 'Your password or code is incorrect.', code: 'TOTP_DISABLE_REFUSED' })
-  }
-  clearFailedLogins(table, row.id)
-  db.transaction(() => {
-    db.prepare(`UPDATE ${table} SET totp_enabled = 0, totp_secret = NULL, totp_last_step = 0 WHERE id = ?`).run(row.id)
-    db.prepare('DELETE FROM totp_recovery_codes WHERE account_type = ? AND account_id = ?').run(typeOf(req.auth.role), row.id)
-  })()
-  logAudit({ actorId: req.auth.sub, actorName: req.auth.name, actorRole: req.auth.role, action: 'two_factor_disabled', messId: row.hostel_id ? messIdForHostel(row.hostel_id) : undefined, summary: `${req.auth.name} turned off two-factor login` })
-  res.json({ enabled: false })
-})
+// authRouter.post('/2fa/disable', loginLimiter, requireAuth, validate(twoFactorDisableSchema), async (req, res) => {
+//   const table = tableOf(req.auth.role)
+//   const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(req.auth.sub)
+//   if (!row.totp_enabled) return res.status(409).json({ error: 'Two-factor login is not on.', code: 'TOTP_NOT_ENABLED' })
+//   // Required roles can't switch it off — that is the whole point of the requirement (a stolen session must not be able to strip it).
+//   if (twoFactorRequiredFor(req.auth.role)) return res.status(403).json({ error: 'Two-factor login is required for your role and cannot be turned off. If you lost your authenticator, ask the Super Admin to reset it.', code: 'TWO_FACTOR_REQUIRED_BY_POLICY' })
+//   const lock = lockoutStatus(row)
+//   if (lock.locked) return res.status(423).json({ error: `Too many failed attempts — locked for ${lock.retryAfterMinutes} more minute${lock.retryAfterMinutes === 1 ? '' : 's'}.` })
+//   // A borrowed, signed-in session must not be able to strip the protection: password AND a code are both required.
+//   if (!(await verifyPassword(req.body.password, row.password_hash)) || !checkSecondFactor(table, row, req.body.code)) {
+//     const result = recordFailedLogin(table, row.id)
+//     if (result.locked) return res.status(423).json({ error: `Too many failed attempts — this account is now locked for ${result.retryAfterMinutes} minutes.` })
+//     return res.status(400).json({ error: 'Your password or code is incorrect.', code: 'TOTP_DISABLE_REFUSED' })
+//   }
+//   clearFailedLogins(table, row.id)
+//   db.transaction(() => {
+//     db.prepare(`UPDATE ${table} SET totp_enabled = 0, totp_secret = NULL, totp_last_step = 0 WHERE id = ?`).run(row.id)
+//     db.prepare('DELETE FROM totp_recovery_codes WHERE account_type = ? AND account_id = ?').run(typeOf(req.auth.role), row.id)
+//   })()
+//   logAudit({ actorId: req.auth.sub, actorName: req.auth.name, actorRole: req.auth.role, action: 'two_factor_disabled', messId: row.hostel_id ? messIdForHostel(row.hostel_id) : undefined, summary: `${req.auth.name} turned off two-factor login` })
+//   res.json({ enabled: false })
+// })
 
 // Real token revocation: bumps token_version, which invalidates every outstanding JWT
 // for this account immediately — not just removing the token client-side.

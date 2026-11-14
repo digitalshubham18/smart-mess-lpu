@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
 import { randomUUID, randomBytes, createHmac, timingSafeEqual } from 'node:crypto'
-import { twoFactorRequiredFor } from './policy.js'
+// import { twoFactorRequiredFor } from './policy.js'
 import { db, resolveActorName } from './db.js'
 
 // TODO(production): move this to a real secret manager / environment variable set at
@@ -31,7 +31,7 @@ assertSecureConfig()
 // triggers a CORS preflight the server refuses — that's the CSRF defense.
 const PASSWORD_CHANGE_ALLOWED = new Set(['POST /api/auth/change-password', 'POST /api/auth/logout'])
 // An Admin / Super Admin who has not set up two-factor yet can do exactly this: set it up, or sign out. (Policy: policy.js.)
-const TWO_FACTOR_SETUP_ALLOWED = new Set(['POST /api/auth/2fa/setup', 'POST /api/auth/2fa/enable', 'POST /api/auth/logout', 'POST /api/auth/logout-all'])
+// const TWO_FACTOR_SETUP_ALLOWED = new Set(['POST /api/auth/2fa/setup', 'POST /api/auth/2fa/enable', 'POST /api/auth/logout', 'POST /api/auth/logout-all'])
 export const SESSION_COOKIE = 'smartmess_session'
 export const WEB_CLIENT_HEADER = 'x-smartmess-client'
 const SESSION_MAX_AGE_S = 7 * 24 * 60 * 60
@@ -177,7 +177,10 @@ export function requireAuth(req, res, next) {
     // instantly invalidates every token issued before that point, not just the one the
     // person is currently using.
     // Only staff rows have student_id (set for PARENT accounts); students rows don't have the column.
-    const cols = payload.role === 'STUDENT' ? 'token_version, hostel_id, must_change_password, totp_enabled' : 'token_version, hostel_id, student_id, must_change_password, totp_enabled'
+    // const cols = payload.role === 'STUDENT' ? 'token_version, hostel_id, must_change_password, totp_enabled' : 'token_version, hostel_id, student_id, must_change_password, totp_enabled'
+    const cols = payload.role === 'STUDENT'
+  ? 'token_version, hostel_id, must_change_password'
+  : 'token_version, hostel_id, student_id, must_change_password'
     const row = db.prepare(`SELECT ${cols} FROM ${tableFor(payload.role)} WHERE id = ?`).get(payload.sub)
     if (!row || row.token_version !== payload.tv) {
       return res.status(401).json({ error: 'Your session is no longer valid — please sign in again.', code: 'TOKEN_REVOKED' })
@@ -200,10 +203,10 @@ export function requireAuth(req, res, next) {
       return res.status(403).json({ error: 'You must choose a new password before you can continue.', code: 'PASSWORD_CHANGE_REQUIRED' })
     }
     // Mandatory two-factor for the roles policy.js names: until it is set up, the session can only set it up or sign out.
-    req.auth.twoFactorSetupRequired = twoFactorRequiredFor(payload.role) && !row.totp_enabled
-    if (req.auth.twoFactorSetupRequired && !TWO_FACTOR_SETUP_ALLOWED.has(`${req.method} ${req.originalUrl.split('?')[0]}`)) {
-      return res.status(403).json({ error: 'Your role requires two-factor login. Set it up to continue.', code: 'TWO_FACTOR_SETUP_REQUIRED' })
-    }
+    // req.auth.twoFactorSetupRequired = twoFactorRequiredFor(payload.role) && !row.totp_enabled
+    // if (req.auth.twoFactorSetupRequired && !TWO_FACTOR_SETUP_ALLOWED.has(`${req.method} ${req.originalUrl.split('?')[0]}`)) {
+    //   return res.status(403).json({ error: 'Your role requires two-factor login. Set it up to continue.', code: 'TWO_FACTOR_SETUP_REQUIRED' })
+    // }
     next()
   } catch (e) {
     if (e?.name === 'TokenExpiredError') return res.status(401).json({ error: 'Your session has expired — please sign in again.', code: 'TOKEN_EXPIRED' })

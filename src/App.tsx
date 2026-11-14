@@ -7,7 +7,7 @@ import { ROLE_HOME } from '@/data/mockUsers'
 import Login from '@/pages/auth/Login'
 import ChangePasswordRequired from '@/pages/auth/ChangePasswordRequired'
 import SystemErrors from '@/pages/SystemErrors'
-import SetupTwoFactorRequired from '@/pages/auth/SetupTwoFactorRequired'
+// import SetupTwoFactorRequired from '@/pages/auth/SetupTwoFactorRequired'
 import Register from '@/pages/auth/Register'
 import ForgotPassword from '@/pages/auth/ForgotPassword'
 import ResetPassword from '@/pages/auth/ResetPassword'
@@ -61,7 +61,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/change-password" element={<ChangePasswordRequired />} />
-        <Route path="/setup-two-factor" element={<SetupTwoFactorRequired />} />
+        {/* <Route path="/setup-two-factor" element={<SetupTwoFactorRequired />} /> */}
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 

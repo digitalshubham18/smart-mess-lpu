@@ -24,16 +24,19 @@ function extractApiError(e: unknown, fallback: string): string {
 }
 
 /** Thrown by login() when the password was right but the account has two-factor on: carries the short-lived challenge to finish with a code. */
-export class TwoFactorRequiredError extends Error {
-  challenge: string
-  constructor(challenge: string) {
-    super('Enter the code from your authenticator app.')
-    this.name = 'TwoFactorRequiredError'
-    this.challenge = challenge
-  }
-}
+// export class TwoFactorRequiredError extends Error {
+//   challenge: string
+//   constructor(challenge: string) {
+//     super('Enter the code from your authenticator app.')
+//     this.name = 'TwoFactorRequiredError'
+//     this.challenge = challenge
+//   }
+// }
 
-export async function login(identifier: string, password: string): Promise<AuthResult> {
+export async function login(
+  identifier: string,
+  password: string
+): Promise<AuthResult> {
   const value = identifier.trim()
 
   if (!value || !password) {
@@ -42,12 +45,19 @@ export async function login(identifier: string, password: string): Promise<AuthR
   }
 
   try {
-    const { data } = await api.post<AuthResult & { twoFactorRequired?: boolean; challenge?: string }>('/auth/login', { identifier: value, password })
-    if (data.twoFactorRequired && data.challenge) throw new TwoFactorRequiredError(data.challenge)
+    const { data } = await api.post<AuthResult>('/auth/login', {
+      identifier: value,
+      password,
+    })
+
     return finishLogin(data.user)
   } catch (e) {
-    if (e instanceof TwoFactorRequiredError) throw e
-    throw new Error(extractApiError(e, 'Could not reach the real API server — is it running (cd server && npm start)?'))
+    throw new Error(
+      extractApiError(
+        e,
+        'Could not reach the real API server — is it running (cd server && npm start)?'
+      )
+    )
   }
 }
 
@@ -225,47 +235,47 @@ export function hasRole(user: User | null, ...roles: Role[]): boolean {
 }
 
 /** Second step of sign-in: exchanges the challenge + an authenticator code (or a one-time recovery code) for the session. */
-export async function loginWithTwoFactor(challenge: string, code: string): Promise<AuthResult> {
-  try {
-    const { data } = await api.post<AuthResult>('/auth/login/2fa', { challenge, code: code.trim() })
-    return finishLogin(data.user)
-  } catch (e) {
-    const err = e as { response?: { data?: { code?: string } } }
-    const wrapped = new Error(extractApiError(e, 'Could not verify the code — is the API server running?')) as Error & { expired?: boolean }
-    wrapped.expired = err.response?.data?.code === 'CHALLENGE_EXPIRED'
-    throw wrapped
-  }
-}
+// export async function loginWithTwoFactor(challenge: string, code: string): Promise<AuthResult> {
+//   try {
+//     const { data } = await api.post<AuthResult>('/auth/login/2fa', { challenge, code: code.trim() })
+//     return finishLogin(data.user)
+//   } catch (e) {
+//     const err = e as { response?: { data?: { code?: string } } }
+//     const wrapped = new Error(extractApiError(e, 'Could not verify the code — is the API server running?')) as Error & { expired?: boolean }
+//     wrapped.expired = err.response?.data?.code === 'CHALLENGE_EXPIRED'
+//     throw wrapped
+//   }
+// }
 
 /** Starts setup: the server makes a secret; show it as a QR code / text for the authenticator app. Nothing is on until enableTwoFactor succeeds. */
-export async function startTwoFactorSetup(): Promise<{ secret: string; otpauthUri: string }> {
-  try {
-    const { data } = await api.post<{ secret: string; otpauthUri: string }>('/auth/2fa/setup', {})
-    return data
-  } catch (e) {
-    throw new Error(extractApiError(e, 'Could not start two-factor setup.'))
-  }
-}
+// export async function startTwoFactorSetup(): Promise<{ secret: string; otpauthUri: string }> {
+//   try {
+//     const { data } = await api.post<{ secret: string; otpauthUri: string }>('/auth/2fa/setup', {})
+//     return data
+//   } catch (e) {
+//     throw new Error(extractApiError(e, 'Could not start two-factor setup.'))
+//   }
+// }
 
 /** Confirms the app works by checking a live code; returns the one-time recovery codes (shown once, only hashes are stored). */
-export async function enableTwoFactor(code: string): Promise<{ recoveryCodes: string[] }> {
-  try {
-    const { data } = await api.post<{ enabled: boolean; recoveryCodes: string[] }>('/auth/2fa/enable', { code: code.trim() })
-    return { recoveryCodes: data.recoveryCodes }
-  } catch (e) {
-    throw new Error(extractApiError(e, 'Could not turn on two-factor login.'))
-  }
-}
+// export async function enableTwoFactor(code: string): Promise<{ recoveryCodes: string[] }> {
+//   try {
+//     const { data } = await api.post<{ enabled: boolean; recoveryCodes: string[] }>('/auth/2fa/enable', { code: code.trim() })
+//     return { recoveryCodes: data.recoveryCodes }
+//   } catch (e) {
+//     throw new Error(extractApiError(e, 'Could not turn on two-factor login.'))
+//   }
+// }
 
-export async function disableTwoFactor(password: string, code: string): Promise<void> {
-  try {
-    await api.post('/auth/2fa/disable', { password, code: code.trim() })
-  } catch (e) {
-    throw new Error(extractApiError(e, 'Could not turn off two-factor login.'))
-  }
-}
+// export async function disableTwoFactor(password: string, code: string): Promise<void> {
+//   try {
+//     await api.post('/auth/2fa/disable', { password, code: code.trim() })
+//   } catch (e) {
+//     throw new Error(extractApiError(e, 'Could not turn off two-factor login.'))
+//   }
+// }
 
-/** Keeps the cached profile in step after two-factor is turned on or off. */
-export function cacheUser(user: User) {
-  localStorage.setItem(USER_KEY, JSON.stringify(user))
-}
+// /** Keeps the cached profile in step after two-factor is turned on or off. */
+// export function cacheUser(user: User) {
+//   localStorage.setItem(USER_KEY, JSON.stringify(user))
+// }

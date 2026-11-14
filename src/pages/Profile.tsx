@@ -1,5 +1,5 @@
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm'
-import { TwoFactorSettings } from '@/components/auth/TwoFactorSettings'
+// import { TwoFactorSettings } from '@/components/auth/TwoFactorSettings'
 import { useT } from '@/i18n/useLanguage'
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
 import { DevicesCard } from '@/components/auth/DevicesCard'
@@ -74,7 +74,7 @@ export default function Profile() {
             {!pwDone && <ChangePasswordForm onDone={() => setPwDone(true)} />}
           </div>
         )}
-        <TwoFactorSettings />
+        {/* <TwoFactorSettings /> */}
         <DevicesCard />
         <section aria-labelledby="lang-h" className="mt-6 pt-5 border-t border-line dark:border-ink-700">
           <h2 id="lang-h" className="font-display font-semibold text-slate-800 dark:text-slate-100">{t('profile.language')}</h2>

@@ -2,7 +2,8 @@ import { create } from 'zustand'
 import type { User } from '@/types'
 import * as authService from '@/services/authService'
 import * as pushService from '@/services/pushService'
-import { AUTH_EXPIRED_EVENT, PASSWORD_CHANGE_REQUIRED_EVENT, TWO_FACTOR_SETUP_REQUIRED_EVENT } from '@/services/api'
+// import { AUTH_EXPIRED_EVENT, PASSWORD_CHANGE_REQUIRED_EVENT, TWO_FACTOR_SETUP_REQUIRED_EVENT } from '@/services/api'
+import { AUTH_EXPIRED_EVENT, PASSWORD_CHANGE_REQUIRED_EVENT } from '@/services/api'
 import { useMessStore } from './useMessStore'
 
 interface AuthState {
@@ -16,9 +17,9 @@ interface AuthState {
   /** UID-only sign-up: name and email come from the roster record (the emailed code must already be verified). */
   registerWithUid: (uid: string, password: string) => Promise<User>
   /** Finishes a two-factor sign-in with an authenticator (or recovery) code. */
-  loginWithTwoFactor: (challenge: string, code: string) => Promise<User>
+  // loginWithTwoFactor: (challenge: string, code: string) => Promise<User>
   /** Reflects turning two-factor on/off in the signed-in profile. */
-  setTwoFactorEnabled: (enabled: boolean) => void
+  // setTwoFactorEnabled: (enabled: boolean) => void
   logout: () => Promise<void>
   /** Real password change; on success the cached profile (mustChangePassword now false) replaces the old one. */
   changePassword: (currentPassword: string, newPassword: string) => Promise<User>
@@ -37,40 +38,38 @@ export const useAuthStore = create<AuthState>((set) => ({
   error: null,
   sessionExpiredMessage: null,
   async login(email, password) {
-    set({ isLoading: true, error: null })
-    try {
-      const { user } = await authService.login(email, password)
-      set({ user, isLoading: false })
-      useMessStore.getState().syncToUser(user)
-      return user
-    } catch (e) {
-      // Password was right but a code is still needed — that's a next step, not an error to display.
-      if (e instanceof authService.TwoFactorRequiredError) { set({ isLoading: false }); throw e }
-      const message = e instanceof Error ? e.message : 'Login failed'
-      set({ isLoading: false, error: message })
-      throw e
-    }
-  },
-  async loginWithTwoFactor(challenge, code) {
-    set({ isLoading: true, error: null })
-    try {
-      const { user } = await authService.loginWithTwoFactor(challenge, code)
-      set({ user, isLoading: false })
-      useMessStore.getState().syncToUser(user)
-      return user
-    } catch (e) {
-      set({ isLoading: false, error: e instanceof Error ? e.message : 'Could not verify the code.' })
-      throw e
-    }
-  },
-  setTwoFactorEnabled(enabled) {
-    const u = useAuthStore.getState().user
-    if (!u) return
-    // Turning it on satisfies a "you must set this up" requirement; turning it off (only possible where it's optional) can't create one.
-    const next = { ...u, twoFactorEnabled: enabled, twoFactorSetupRequired: !!u.twoFactorRequired && !enabled }
-    authService.cacheUser(next)
-    set({ user: next })
-  },
+  set({ isLoading: true, error: null })
+  try {
+    const { user } = await authService.login(email, password)
+    set({ user, isLoading: false })
+    useMessStore.getState().syncToUser(user)
+    return user
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Login failed'
+    set({ isLoading: false, error: message })
+    throw e
+  }
+},
+  // async loginWithTwoFactor(challenge, code) {
+  //   set({ isLoading: true, error: null })
+  //   try {
+  //     const { user } = await authService.loginWithTwoFactor(challenge, code)
+  //     set({ user, isLoading: false })
+  //     useMessStore.getState().syncToUser(user)
+  //     return user
+  //   } catch (e) {
+  //     set({ isLoading: false, error: e instanceof Error ? e.message : 'Could not verify the code.' })
+  //     throw e
+  //   }
+  // },
+  // setTwoFactorEnabled(enabled) {
+  //   const u = useAuthStore.getState().user
+  //   if (!u) return
+  //   // Turning it on satisfies a "you must set this up" requirement; turning it off (only possible where it's optional) can't create one.
+  //   const next = { ...u, twoFactorEnabled: enabled, twoFactorSetupRequired: !!u.twoFactorRequired && !enabled }
+  //   authService.cacheUser(next)
+  //   set({ user: next })
+  // },
   async register(uid, name, email, password) {
     set({ isLoading: true, error: null })
     try {
@@ -142,9 +141,9 @@ if (typeof window !== 'undefined') {
 
 // The API said "this role must set up two-factor first" (policy changed, or an Admin reset ours, while we held a stale
 // profile). Flip the flag; ProtectedRoute then routes to /setup-two-factor.
-if (typeof window !== 'undefined') {
-  window.addEventListener(TWO_FACTOR_SETUP_REQUIRED_EVENT, () => {
-    const u = useAuthStore.getState().user
-    if (u && !u.twoFactorSetupRequired) useAuthStore.setState({ user: { ...u, twoFactorRequired: true, twoFactorSetupRequired: true, twoFactorEnabled: false } })
-  })
-}
+// if (typeof window !== 'undefined') {
+//   window.addEventListener(TWO_FACTOR_SETUP_REQUIRED_EVENT, () => {
+//     const u = useAuthStore.getState().user
+//     if (u && !u.twoFactorSetupRequired) useAuthStore.setState({ user: { ...u, twoFactorRequired: true, twoFactorSetupRequired: true, twoFactorEnabled: false } })
+//   })
+// }
