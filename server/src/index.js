@@ -5,9 +5,10 @@ import { startScheduler } from './scheduler.js'
 import { recordError } from './errorLog.js'
 
 const PORT = process.env.PORT || 4000
-app.listen(PORT, () => {
+
+app.listen(PORT, '0.0.0.0', () => {
   startScheduler()
-  console.log(`[server] LPU Smart Mess real API listening on http://localhost:${PORT}`)
+  console.log(`[server] LPU Smart Mess real API listening on port ${PORT}`)
   console.log(`[server] password hashing: ${hashingImplementation === 'native' ? 'native bcrypt (thread pool)' : 'bcryptjs (pure JS — blocks the event loop under login bursts; install the optional "bcrypt" package)'}`)
 })
 
