@@ -85,138 +85,72 @@
 // }
 
 
-import path from 'node:path'
-import fs from 'node:fs'
-import { fileURLToPath } from 'node:url'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const OUTBOX_DIR = process.env.OUTBOX_DIR
-  ? path.resolve(process.env.OUTBOX_DIR)
-  : path.resolve(__dirname, '../data/outbox')
-
-fs.mkdirSync(OUTBOX_DIR, { recursive: true })
+import nodemailer from 'nodemailer'
 
 let transporter = null
 
-async function getTransporter() {
+function getTransporter() {
   if (transporter) return transporter
-  if (!process.env.SMTP_HOST) return null
 
-  const nodemailer = await import('nodemailer')
+  const { SMTP_HOST, SMTP_USER, SMTP_PASS } = process.env
+
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+    throw new Error('SMTP configuration is incomplete')
+  }
 
   transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
+    host: SMTP_HOST,
     port: Number(process.env.SMTP_PORT) || 587,
     secure: process.env.SMTP_SECURE === 'true',
-    auth: process.env.SMTP_USER
-      ? {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        }
-      : undefined,
-    connectionTimeout: Number(process.env.SMTP_TIMEOUT_MS) || 8000,
-    greetingTimeout: Number(process.env.SMTP_TIMEOUT_MS) || 8000,
-    socketTimeout: (Number(process.env.SMTP_TIMEOUT_MS) || 8000) * 2,
-    requireTLS: process.env.SMTP_REQUIRE_TLS === 'true',
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
   })
 
   return transporter
 }
 
-let seq = 1
 const recent = []
 
 export function getSentEmails() {
   return recent
 }
 
-function remember(entry) {
-  recent.push({ ...entry, at: new Date().toISOString() })
-  if (recent.length > 200) recent.shift()
-}
+export async function sendEmail({ to, subject, text }) {
+  recent.push({ to, subject, text, at: new Date().toISOString() })
 
-async function sendWithResend({ to, subject, text }) {
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: process.env.EMAIL_FROM,
-      to: [to],
-      subject,
-      text,
-    }),
-    signal: AbortSignal.timeout(15000),
+  if (recent.length > 200) recent.shift()
+
+  const mailer = getTransporter()
+
+  const info = await mailer.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to,
+    subject,
+    text,
   })
 
-  const result = await response.json().catch(() => ({}))
+  console.log(`[email:nodemailer] ${subject} -> ${to}`)
 
-  if (!response.ok) {
-    throw new Error(
-      `Resend API error (${response.status}): ${result.message || 'Email delivery failed'}`
-    )
+  return {
+    sent: true,
+    transport: 'smtp',
+    messageId: info.messageId,
   }
-
-  console.log(`[email:resend] ${subject} -> ${to}`)
-  return { sent: true, transport: 'resend', id: result.id }
-}
-
-export async function sendEmail({ to, subject, text }) {
-  remember({ to, subject, text })
-  console.log('[email:config]', {
-  resendConfigured: Boolean(process.env.RESEND_API_KEY),
-  senderConfigured: Boolean(process.env.EMAIL_FROM),
-  smtpConfigured: Boolean(process.env.SMTP_HOST),
-})
-
-  // Prefer Resend when configured.
-  // If it fails, throw instead of pretending the email was delivered.
-  if (process.env.RESEND_API_KEY) {
-    if (!process.env.EMAIL_FROM) {
-      throw new Error('EMAIL_FROM is missing')
-    }
-
-    return sendWithResend({ to, subject, text })
-  }
-
-  // SMTP fallback.
-  const real = await getTransporter()
-
-  if (real) {
-    await real.sendMail({
-      from: process.env.SMTP_FROM || 'no-reply@lpu.smartmess.edu',
-      to,
-      subject,
-      text,
-    })
-
-    return { sent: true, transport: 'smtp' }
-  }
-
-  // Local development fallback only.
-  const file = path.join(
-    OUTBOX_DIR,
-    `${Date.now()}-${seq++}-${to.replace(/[^a-z0-9]/gi, '_')}.txt`
-  )
-
-  const body =
-    `To: ${to}\nSubject: ${subject}\nDate: ${new Date().toISOString()}\n\n${text}\n`
-
-  fs.writeFileSync(file, body)
-  console.log(`[email:outbox] ${subject} -> ${to} (${file})`)
-
-  return { sent: true, transport: 'outbox', file }
 }
 
 export async function sendEmailQuietly(opts) {
   try {
     await sendEmail(opts)
     return true
-  } catch (e) {
+  } catch (error) {
     console.error(
-      `[email:FAILED] "${opts.subject}" -> ${opts.to}: ${e?.message ?? e}`
+      `[email:FAILED] "${opts.subject}" -> ${opts.to}: ${error.message}`
     )
     return false
   }
