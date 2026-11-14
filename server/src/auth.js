@@ -165,7 +165,7 @@ export function requireAuth(req, res, next) {
   const bearer = header.startsWith('Bearer ') ? header.slice(7) : null
   const cookieToken = bearer ? null : readCookie(req, SESSION_COOKIE)
   const token = bearer ?? cookieToken
-  if (!token) return res.status(401).json({ error: '' })
+  if (!token) return res.status(401).json({ error: 'Missing bearer token,' })
   if (cookieToken && !['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !isWebClient(req)) {
     return res.status(403).json({ error: 'Missing client header on a cookie-authenticated request.', code: 'CSRF_BLOCKED' })
   }

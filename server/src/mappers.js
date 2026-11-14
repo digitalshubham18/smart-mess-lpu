@@ -1,4 +1,4 @@
-import { twoFactorRequiredFor } from './policy.js'
+// import { twoFactorRequiredFor } from './policy.js'
 
 export function toStudentJSON(row) {
   if (!row) return null
@@ -38,8 +38,7 @@ export function toUserJSON(row) {
     hostelId: row.hostel_id,
     createdAt: row.created_at,
     mustChangePassword: !!row.must_change_password,
-    twoFactorEnabled: !!row.totp_enabled,
-    _student: student,
+_student: student,
   }
 }
 
@@ -62,10 +61,10 @@ export function toStaffUserJSON(row) {
     studentId: row.student_id ?? undefined,
     createdAt: row.created_at,
     mustChangePassword: !!row.must_change_password,
-    twoFactorEnabled: !!row.totp_enabled,
+    // twoFactorEnabled: !!row.totp_enabled,
     // Policy (policy.js): this role must use two-factor. While it isn't on yet the API only allows setting it up.
-    twoFactorRequired: twoFactorRequiredFor(row.role),
-    twoFactorSetupRequired: twoFactorRequiredFor(row.role) && !row.totp_enabled,
+    // twoFactorRequired: twoFactorRequiredFor(row.role),
+    // twoFactorSetupRequired: twoFactorRequiredFor(row.role) && !row.totp_enabled,
   }
 }
 
